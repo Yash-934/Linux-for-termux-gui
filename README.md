@@ -13,4 +13,4 @@
 Open **Termux** and paste this command:
 
 ```bash
-curl -sL [https://raw.githubusercontent.com/Yash-934/Linux-for-termux-gui/main/install.sh](https://raw.githubusercontent.com/Yash-934/Linux-for-termux-gui/main/install.sh) | bash
+curl -sL https://raw.githubusercontent.com/Yash-934/Linux-for-termux-gui/main/install.sh | bash
