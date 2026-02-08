@@ -12,5 +12,10 @@
 
 Open **Termux** and paste this command:
 
+pkg update -y && pkg upgrade -y
+pkg install openssl -y
+
+and then
+
 ```bash
 curl -sL https://raw.githubusercontent.com/Yash-934/Linux-for-termux-gui/main/install.sh | bash
