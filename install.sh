@@ -1,12 +1,11 @@
 #!/data/data/com.termux/files/usr/bin/bash
 #######################################################
-#  🐧 LINUX INSTALLATION LAB - Ultimate Installer v3.2
+#  🐧 LINUX INSTALLATION LAB - Ultimate Installer v3.3
 #  
 #  Features:
-#  - FIXED: Auto-Repair for "Failed" installations
-#  - FIXED: Libcrypto/SSL errors handling
+#  - NEW: Smart Retry (Auto-fixes internet fails)
+#  - FIXED: Wine & Hydra installation loop
 #  - Personalized for: Yash
-#  - All tools installed in 'Yash' folder
 #  
 #  Author: Yash
 #  YouTube: https://youtube.com/@Yash
@@ -31,6 +30,7 @@ NC='\033[0m'
 update_progress() {
     CURRENT_STEP=$((CURRENT_STEP + 1))
     PERCENT=$((CURRENT_STEP * 100 / TOTAL_STEPS))
+    if [ $PERCENT -gt 100 ]; then PERCENT=100; fi
     FILLED=$((PERCENT / 5))
     EMPTY=$((20 - FILLED))
     BAR="${GREEN}"
@@ -60,18 +60,36 @@ spinner() {
     if [ $exit_code -eq 0 ]; then
         printf "\r  ${GREEN}✓${NC} ${message}                    \n"
     else
-        printf "\r  ${RED}✗${NC} ${message} ${RED}(failed - retrying later)${NC}\n"
+        printf "\r  ${RED}✗${NC} ${message} ${RED}(retrying...)${NC}     \n"
     fi
     return $exit_code
 }
 
+# Smart Install Function (Retries 3 times if fails)
 install_pkg() {
     local pkg=$1
     local name=${2:-$pkg}
-    # Attempt install
-    (yes | pkg install $pkg -y > /dev/null 2>&1) &
-    spinner $! "Installing ${name}..."
-    sleep 1 # Pause to let lock file release
+    local attempt=1
+    local max_attempts=3
+    
+    while [ $attempt -le $max_attempts ]; do
+        (yes | pkg install $pkg -y > /dev/null 2>&1) &
+        spinner $! "Installing ${name} (Attempt $attempt/$max_attempts)..."
+        
+        # Check if installed
+        if dpkg -s "$pkg" >/dev/null 2>&1; then
+            return 0
+        else
+            if [ $attempt -lt $max_attempts ]; then
+                echo -e "  ${YELLOW}⚠${NC} Connection failed, waiting 3s..."
+                sleep 3
+                # Refresh connection
+                pkg update -y >/dev/null 2>&1
+            fi
+            attempt=$((attempt + 1))
+        fi
+    done
+    echo -e "  ${RED}✗${NC} Failed to install ${name}."
 }
 
 # ============== BANNER ==============
@@ -81,8 +99,8 @@ show_banner() {
     cat << 'BANNER'
     ╔══════════════════════════════════════╗
     ║                                      ║
-    ║   🐧  LINUX INSTALLATION LAB v3.2    ║
-    ║         (Auto-Fix Edition)           ║
+    ║   🐧  LINUX INSTALLATION LAB v3.3    ║
+    ║        (Smart Retry Edition)         ║
     ║         Created By: Yash             ║
     ║                                      ║
     ╚══════════════════════════════════════╝
@@ -99,10 +117,7 @@ step_repair() {
     echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Attempting Auto-Repair...${NC}"
     echo -e "  ${YELLOW}ℹ${NC} Fixing broken packages/SSL issues..."
     
-    # Try to configure interrupted packages
     dpkg --configure -a > /dev/null 2>&1
-    
-    # Force update with new config
     (pkg update -y -o Dpkg::Options::="--force-confnew" && pkg upgrade -y -o Dpkg::Options::="--force-confnew") > /dev/null 2>&1 &
     spinner $! "System Repair & Update..."
 }
@@ -119,12 +134,10 @@ step_base() {
 step_repos() {
     update_progress
     echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Fixing Repositories...${NC}"
-    # Install repos one by one to avoid conflicts
     install_pkg "root-repo" "Root Repo"
     install_pkg "x11-repo" "X11 Repo"
     install_pkg "tur-repo" "TUR Repo"
     
-    # Update again after adding repos
     (pkg update -y) > /dev/null 2>&1 &
     spinner $! "Refreshing Repo List..."
 }
@@ -180,7 +193,7 @@ step_network_tools() {
 # ============== FIXED YASH TOOLS ==============
 step_security_tools() {
     update_progress
-    echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Yash Tools (FIXED)...${NC}"
+    echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Yash Tools...${NC}"
     echo ""
     
     # Create a dedicated folder "Yash"
@@ -202,7 +215,8 @@ step_security_tools() {
 step_hydra_fix() {
     update_progress
     echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Hydra...${NC}"
-    # Installing Hydra separately to prevent lock issues
+    # Force update before installing Hydra
+    (pkg update -y) > /dev/null 2>&1
     install_pkg "hydra" "Hydra"
 }
 
@@ -225,8 +239,8 @@ step_metasploit() {
 step_wine() {
     update_progress
     echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Wine...${NC}"
-    # Attempting to fix any broken dependencies before wine
-    dpkg --configure -a > /dev/null 2>&1
+    # Force update before installing Wine
+    (pkg update -y) > /dev/null 2>&1
     install_pkg "wine" "Wine (Standard)"
 }
 
