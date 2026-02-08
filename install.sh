@@ -1,11 +1,11 @@
 #!/data/data/com.termux/files/usr/bin/bash
 #######################################################
-#  🐧 LINUX Installation Lab - Ultimate Installer v3.0
+#  🐧 LINUX Installation Lab - Ultimate Installer v3.1
 #  
 #  Features:
-#  - FIXED: Hacking Tools (SQLMap, Metasploit)
+#  - Personalized for: Yash
 #  - GPU acceleration auto-setup
-#  - New "HackTools" Folder created
+#  - All tools installed in 'Yash' folder
 #  
 #  Author: Yash
 #  YouTube: https://youtube.com/@Yash
@@ -79,7 +79,7 @@ show_banner() {
     ╔══════════════════════════════════════╗
     ║                                      ║
     ║   🐧  LINUX INSTALLATION LAB v3      ║
-    ║         (With Fixed Tools)           ║
+    ║         (Personalized Edition)       ║
     ║         Created By: Yash             ║
     ║                                      ║
     ╚══════════════════════════════════════╝
@@ -107,7 +107,6 @@ step_update() {
 step_repos() {
     update_progress
     echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Fixing Repositories...${NC}"
-    # Installing root-repo and x11-repo explicitly
     install_pkg "root-repo" "Root Repo"
     install_pkg "x11-repo" "X11 Repo"
     install_pkg "tur-repo" "TUR Repo"
@@ -161,23 +160,23 @@ step_network_tools() {
     install_pkg "netcat-openbsd" "Netcat"
 }
 
-# ============== FIXED SECURITY TOOLS ==============
+# ============== FIXED YASH TOOLS ==============
 step_security_tools() {
     update_progress
-    echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Hacking Tools (FIXED)...${NC}"
+    echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Yash Tools (FIXED)...${NC}"
     echo ""
     
-    # Create a dedicated folder
-    mkdir -p ~/HackTools
-    echo -e "  ${CYAN}📂${NC} Created 'HackTools' folder..."
+    # Create a dedicated folder "Yash" instead of HackTools
+    mkdir -p ~/Yash
+    echo -e "  ${CYAN}📂${NC} Created 'Yash' folder..."
 
-    # 1. SQLMap (Using Git Clone - 100% Success Rate)
+    # 1. SQLMap (Using Git Clone -> ~/Yash/sqlmap)
     echo -e "  ${YELLOW}⏳${NC} Downloading SQLMap (Git)..."
-    rm -rf ~/HackTools/sqlmap > /dev/null 2>&1
-    git clone --depth 1 https://github.com/sqlmapproject/sqlmap.git ~/HackTools/sqlmap > /dev/null 2>&1
-    echo -e "  ${GREEN}✓${NC} SQLMap installed in ~/HackTools/sqlmap"
+    rm -rf ~/Yash/sqlmap > /dev/null 2>&1
+    git clone --depth 1 https://github.com/sqlmapproject/sqlmap.git ~/Yash/sqlmap > /dev/null 2>&1
+    echo -e "  ${GREEN}✓${NC} SQLMap installed in ~/Yash/sqlmap"
 
-    # 2. Hydra (Try PKG first, else skip)
+    # 2. Hydra (Try PKG first)
     install_pkg "hydra" "Hydra"
     
     # 3. Python Dependencies
@@ -252,7 +251,7 @@ while true; do
     echo "╚══════════════════════════════════════╝"
     read -p " Select: " choice
     case $choice in
-        1) cd ~/HackTools/sqlmap && python sqlmap.py --wizard ;;
+        1) cd ~/Yash/sqlmap && python sqlmap.py --wizard ;;
         2) read -p "IP: " ip; nmap $ip; read -p "Done..." ;;
         3) bash ~/metasploit.sh ;;
         4) bash ~/start-linux.sh ;;
@@ -298,7 +297,7 @@ show_completion() {
 COMPLETE
     echo -e "${WHITE}🚀 START DESKTOP:  ${GREEN}bash ~/start-linux.sh${NC}"
     echo -e "${WHITE}🔧 TOOLS MENU:     ${GREEN}bash ~/linux-tools.sh${NC}"
-    echo -e "${WHITE}📂 NEW FOLDER:     ${GREEN}~/HackTools${NC} (Check here for SQLMap)"
+    echo -e "${WHITE}📂 NEW FOLDER:     ${GREEN}~/Yash${NC} (Check here for SQLMap)"
     echo ""
 }
 
@@ -308,7 +307,9 @@ main() {
     echo -e "${YELLOW}Press Enter to start installation...${NC}"
     read
     
-    detect_device
+    # Device detection dummy for logic
+    echo -e "${PURPLE}[*] Detecting Device...${NC}"
+    
     step_update
     step_repos
     step_x11
@@ -325,8 +326,5 @@ main() {
     
     show_completion
 }
-
-# Device detection dummy for logic
-detect_device() { echo ""; }
 
 main
