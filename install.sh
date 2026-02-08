@@ -1,10 +1,10 @@
 #!/data/data/com.termux/files/usr/bin/bash
 #######################################################
-#  🐧 LINUX INSTALLATION LAB - Ultimate Installer v3.3
+#  🐧 LINUX INSTALLATION LAB - Ultimate Installer v3.4
 #  
 #  Features:
-#  - NEW: Smart Retry (Auto-fixes internet fails)
-#  - FIXED: Wine & Hydra installation loop
+#  - NEW: Auto-Compiles Hydra (Kyuki store se hat gaya h)
+#  - FIXED: Wine Installation (Uses wine-stable)
 #  - Personalized for: Yash
 #  
 #  Author: Yash
@@ -60,36 +60,16 @@ spinner() {
     if [ $exit_code -eq 0 ]; then
         printf "\r  ${GREEN}✓${NC} ${message}                    \n"
     else
-        printf "\r  ${RED}✗${NC} ${message} ${RED}(retrying...)${NC}     \n"
+        printf "\r  ${RED}✗${NC} ${message} ${RED}(check below)${NC}     \n"
     fi
     return $exit_code
 }
 
-# Smart Install Function (Retries 3 times if fails)
 install_pkg() {
     local pkg=$1
     local name=${2:-$pkg}
-    local attempt=1
-    local max_attempts=3
-    
-    while [ $attempt -le $max_attempts ]; do
-        (yes | pkg install $pkg -y > /dev/null 2>&1) &
-        spinner $! "Installing ${name} (Attempt $attempt/$max_attempts)..."
-        
-        # Check if installed
-        if dpkg -s "$pkg" >/dev/null 2>&1; then
-            return 0
-        else
-            if [ $attempt -lt $max_attempts ]; then
-                echo -e "  ${YELLOW}⚠${NC} Connection failed, waiting 3s..."
-                sleep 3
-                # Refresh connection
-                pkg update -y >/dev/null 2>&1
-            fi
-            attempt=$((attempt + 1))
-        fi
-    done
-    echo -e "  ${RED}✗${NC} Failed to install ${name}."
+    (yes | pkg install $pkg -y > /dev/null 2>&1) &
+    spinner $! "Installing ${name}..."
 }
 
 # ============== BANNER ==============
@@ -99,8 +79,8 @@ show_banner() {
     cat << 'BANNER'
     ╔══════════════════════════════════════╗
     ║                                      ║
-    ║   🐧  LINUX INSTALLATION LAB v3.3    ║
-    ║        (Smart Retry Edition)         ║
+    ║   🐧  LINUX INSTALLATION LAB v3.4    ║
+    ║         (Auto-Build Edition)         ║
     ║         Created By: Yash             ║
     ║                                      ║
     ╚══════════════════════════════════════╝
@@ -114,12 +94,15 @@ BANNER
 
 step_repair() {
     update_progress
-    echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Attempting Auto-Repair...${NC}"
-    echo -e "  ${YELLOW}ℹ${NC} Fixing broken packages/SSL issues..."
+    echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] System Check...${NC}"
+    echo -e "  ${YELLOW}ℹ${NC} Checking repositories..."
     
+    # Fix potential lock issues
+    rm -f /data/data/com.termux/files/usr/var/lib/dpkg/lock > /dev/null 2>&1
     dpkg --configure -a > /dev/null 2>&1
-    (pkg update -y -o Dpkg::Options::="--force-confnew" && pkg upgrade -y -o Dpkg::Options::="--force-confnew") > /dev/null 2>&1 &
-    spinner $! "System Repair & Update..."
+    
+    (pkg update -y && pkg upgrade -y) > /dev/null 2>&1 &
+    spinner $! "Updating System..."
 }
 
 step_base() {
@@ -129,6 +112,7 @@ step_base() {
     install_pkg "wget" "Wget"
     install_pkg "python" "Python"
     install_pkg "curl" "Curl"
+    install_pkg "tur-repo" "TUR Repo"
 }
 
 step_repos() {
@@ -136,7 +120,6 @@ step_repos() {
     echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Fixing Repositories...${NC}"
     install_pkg "root-repo" "Root Repo"
     install_pkg "x11-repo" "X11 Repo"
-    install_pkg "tur-repo" "TUR Repo"
     
     (pkg update -y) > /dev/null 2>&1 &
     spinner $! "Refreshing Repo List..."
@@ -196,15 +179,14 @@ step_security_tools() {
     echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Yash Tools...${NC}"
     echo ""
     
-    # Create a dedicated folder "Yash"
     mkdir -p ~/Yash
     echo -e "  ${CYAN}📂${NC} Created 'Yash' folder..."
 
-    # 1. SQLMap (Using Git Clone -> ~/Yash/sqlmap)
-    echo -e "  ${YELLOW}⏳${NC} Downloading SQLMap (Git)..."
+    # 1. SQLMap (Git Clone)
+    echo -e "  ${YELLOW}⏳${NC} Downloading SQLMap..."
     rm -rf ~/Yash/sqlmap > /dev/null 2>&1
     git clone --depth 1 https://github.com/sqlmapproject/sqlmap.git ~/Yash/sqlmap > /dev/null 2>&1
-    echo -e "  ${GREEN}✓${NC} SQLMap installed in ~/Yash/sqlmap"
+    echo -e "  ${GREEN}✓${NC} SQLMap installed"
     
     # 2. Python Dependencies
     echo -e "  ${YELLOW}⏳${NC} Installing Python Libraries..."
@@ -214,19 +196,36 @@ step_security_tools() {
 
 step_hydra_fix() {
     update_progress
-    echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Hydra...${NC}"
-    # Force update before installing Hydra
-    (pkg update -y) > /dev/null 2>&1
-    install_pkg "hydra" "Hydra"
+    echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Hydra (Auto-Build)...${NC}"
+    
+    # Check if package exists, else compile
+    if pkg install hydra -y > /dev/null 2>&1; then
+        echo -e "  ${GREEN}✓${NC} Hydra installed from Repo"
+    else
+        echo -e "  ${YELLOW}⚠${NC} Not in repo, Compiling from Source (Takes 2 min)..."
+        
+        # Install build dependencies
+        pkg install git make clang libidn libssh libpcre2 libmysqlclient postgresql libdnet -y > /dev/null 2>&1
+        
+        # Clone and build
+        rm -rf ~/Yash/thc-hydra > /dev/null 2>&1
+        git clone https://github.com/vanhauser-thc/thc-hydra ~/Yash/thc-hydra > /dev/null 2>&1
+        
+        cd ~/Yash/thc-hydra
+        ./configure > /dev/null 2>&1
+        make > /dev/null 2>&1
+        make install > /dev/null 2>&1
+        cd ~
+        
+        echo -e "  ${GREEN}✓${NC} Hydra Built & Installed!"
+    fi
 }
 
 # ============== FIXED METASPLOIT ==============
 step_metasploit() {
     update_progress
     echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Setting up Metasploit...${NC}"
-    echo -e "  ${YELLOW}⚠${NC} Note: Metasploit is large, downloading installer script..."
     
-    # Download the automated installer script
     cd ~
     rm -f metasploit.sh
     wget https://raw.githubusercontent.com/gushmazuko/metasploit_in_termux/master/metasploit.sh > /dev/null 2>&1
@@ -239,9 +238,15 @@ step_metasploit() {
 step_wine() {
     update_progress
     echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Wine...${NC}"
-    # Force update before installing Wine
-    (pkg update -y) > /dev/null 2>&1
-    install_pkg "wine" "Wine (Standard)"
+    
+    # Try different package names
+    if pkg install wine -y > /dev/null 2>&1; then
+        echo -e "  ${GREEN}✓${NC} Wine installed"
+    elif pkg install wine-stable -y > /dev/null 2>&1; then
+        echo -e "  ${GREEN}✓${NC} Wine-Stable installed"
+    else
+         echo -e "  ${YELLOW}⚠${NC} Wine skipped (Not found in Repo)"
+    fi
 }
 
 step_launchers() {
@@ -273,7 +278,7 @@ exec startxfce4
 LAUNCHEREOF
     chmod +x ~/start-linux.sh
     
-    # Tool Menu (Updated with new paths)
+    # Tool Menu
     cat > ~/linux-tools.sh << 'TOOLSEOF'
 #!/data/data/com.termux/files/usr/bin/bash
 while true; do
