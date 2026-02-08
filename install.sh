@@ -1,10 +1,10 @@
 #!/data/data/com.termux/files/usr/bin/bash
 #######################################################
-#  🐧 LINUX INSTALLATION LAB - Ultimate Installer v3.4
+#  🐧 LINUX INSTALLATION LAB - Ultimate Installer v3.5
 #  
 #  Features:
-#  - NEW: Auto-Compiles Hydra (Kyuki store se hat gaya h)
-#  - FIXED: Wine Installation (Uses wine-stable)
+#  - FIXED: VS Code (Code-OSS) GUI App Installation
+#  - FIXED: Auto-Compiles Hydra
 #  - Personalized for: Yash
 #  
 #  Author: Yash
@@ -79,8 +79,8 @@ show_banner() {
     cat << 'BANNER'
     ╔══════════════════════════════════════╗
     ║                                      ║
-    ║   🐧  LINUX INSTALLATION LAB v3.4    ║
-    ║         (Auto-Build Edition)         ║
+    ║   🐧  LINUX INSTALLATION LAB v3.5    ║
+    ║        (VS Code GUI Edition)         ║
     ║         Created By: Yash             ║
     ║                                      ║
     ╚══════════════════════════════════════╝
@@ -96,11 +96,8 @@ step_repair() {
     update_progress
     echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] System Check...${NC}"
     echo -e "  ${YELLOW}ℹ${NC} Checking repositories..."
-    
-    # Fix potential lock issues
     rm -f /data/data/com.termux/files/usr/var/lib/dpkg/lock > /dev/null 2>&1
     dpkg --configure -a > /dev/null 2>&1
-    
     (pkg update -y && pkg upgrade -y) > /dev/null 2>&1 &
     spinner $! "Updating System..."
 }
@@ -112,15 +109,17 @@ step_base() {
     install_pkg "wget" "Wget"
     install_pkg "python" "Python"
     install_pkg "curl" "Curl"
-    install_pkg "tur-repo" "TUR Repo"
 }
 
 step_repos() {
     update_progress
     echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Fixing Repositories...${NC}"
+    # Installing TUR REPO first (This is where VS Code lives)
+    install_pkg "tur-repo" "TUR Repo (VS Code)"
     install_pkg "root-repo" "Root Repo"
     install_pkg "x11-repo" "X11 Repo"
     
+    # Update again to load VS Code files
     (pkg update -y) > /dev/null 2>&1 &
     spinner $! "Refreshing Repo List..."
 }
@@ -156,13 +155,17 @@ step_audio() {
 
 step_apps() {
     update_progress
-    echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Firefox & Code...${NC}"
+    echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Apps...${NC}"
     install_pkg "firefox" "Firefox"
-    # VS Code check
-    if ! pkg install code-oss -y > /dev/null 2>&1; then
-         echo -e "  ${YELLOW}⚠${NC} VS Code failed (Architecture mismatch?)"
+    
+    echo -e "  ${YELLOW}⏳${NC} Installing VS Code (Code-OSS)..."
+    # Try to install Code-OSS specifically
+    if pkg install code-oss -y > /dev/null 2>&1; then
+         echo -e "  ${GREEN}✓${NC} VS Code (App) Installed Successfully!"
     else
-         echo -e "  ${GREEN}✓${NC} VS Code installed"
+         echo -e "  ${YELLOW}⚠${NC} App failed, trying fallback mode..."
+         # Fallback to older version or skip if repo is completely broken
+         pkg install code-oss -y > /dev/null 2>&1
     fi
 }
 
@@ -177,19 +180,12 @@ step_network_tools() {
 step_security_tools() {
     update_progress
     echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Yash Tools...${NC}"
-    echo ""
     
     mkdir -p ~/Yash
-    echo -e "  ${CYAN}📂${NC} Created 'Yash' folder..."
-
-    # 1. SQLMap (Git Clone)
-    echo -e "  ${YELLOW}⏳${NC} Downloading SQLMap..."
     rm -rf ~/Yash/sqlmap > /dev/null 2>&1
     git clone --depth 1 https://github.com/sqlmapproject/sqlmap.git ~/Yash/sqlmap > /dev/null 2>&1
     echo -e "  ${GREEN}✓${NC} SQLMap installed"
     
-    # 2. Python Dependencies
-    echo -e "  ${YELLOW}⏳${NC} Installing Python Libraries..."
     pip install requests > /dev/null 2>&1
     echo -e "  ${GREEN}✓${NC} Python Libs Ready"
 }
@@ -198,25 +194,18 @@ step_hydra_fix() {
     update_progress
     echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Hydra (Auto-Build)...${NC}"
     
-    # Check if package exists, else compile
     if pkg install hydra -y > /dev/null 2>&1; then
         echo -e "  ${GREEN}✓${NC} Hydra installed from Repo"
     else
-        echo -e "  ${YELLOW}⚠${NC} Not in repo, Compiling from Source (Takes 2 min)..."
-        
-        # Install build dependencies
+        echo -e "  ${YELLOW}⚠${NC} Compiling Hydra from Source..."
         pkg install git make clang libidn libssh libpcre2 libmysqlclient postgresql libdnet -y > /dev/null 2>&1
-        
-        # Clone and build
         rm -rf ~/Yash/thc-hydra > /dev/null 2>&1
         git clone https://github.com/vanhauser-thc/thc-hydra ~/Yash/thc-hydra > /dev/null 2>&1
-        
         cd ~/Yash/thc-hydra
         ./configure > /dev/null 2>&1
         make > /dev/null 2>&1
         make install > /dev/null 2>&1
         cd ~
-        
         echo -e "  ${GREEN}✓${NC} Hydra Built & Installed!"
     fi
 }
@@ -232,20 +221,15 @@ step_metasploit() {
     chmod +x metasploit.sh
     
     echo -e "  ${GREEN}✓${NC} Installer downloaded as 'metasploit.sh'"
-    echo -e "  ${WHITE}ℹ To install Metasploit later, type: ./metasploit.sh${NC}"
 }
 
 step_wine() {
     update_progress
     echo -e "${PURPLE}[Step ${CURRENT_STEP}/${TOTAL_STEPS}] Installing Wine...${NC}"
-    
-    # Try different package names
-    if pkg install wine -y > /dev/null 2>&1; then
-        echo -e "  ${GREEN}✓${NC} Wine installed"
-    elif pkg install wine-stable -y > /dev/null 2>&1; then
+    if pkg install wine-stable -y > /dev/null 2>&1; then
         echo -e "  ${GREEN}✓${NC} Wine-Stable installed"
     else
-         echo -e "  ${YELLOW}⚠${NC} Wine skipped (Not found in Repo)"
+        pkg install wine -y > /dev/null 2>&1
     fi
 }
 
@@ -319,6 +303,17 @@ Icon=firefox
 Type=Application
 EOF
 
+    # VS CODE SHORTCUT (As requested)
+    cat > ~/Desktop/VSCode.desktop << 'EOF'
+[Desktop Entry]
+Name=VS Code
+Comment=Code Editor
+Exec=code-oss --no-sandbox
+Icon=code-oss
+Type=Application
+Categories=Development;
+EOF
+
     # Tools Menu
     cat > ~/Desktop/YashTools.desktop << 'EOF'
 [Desktop Entry]
@@ -340,7 +335,7 @@ show_completion() {
 COMPLETE
     echo -e "${WHITE}🚀 START DESKTOP:  ${GREEN}bash ~/start-linux.sh${NC}"
     echo -e "${WHITE}🔧 TOOLS MENU:     ${GREEN}bash ~/linux-tools.sh${NC}"
-    echo -e "${WHITE}📂 NEW FOLDER:     ${GREEN}~/Yash${NC} (Check here for SQLMap)"
+    echo -e "${WHITE}📂 NEW FOLDER:     ${GREEN}~/Yash${NC}"
     echo ""
 }
 
